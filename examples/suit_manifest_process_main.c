@@ -25,46 +25,6 @@
 #include "trust_anchor_prime256v1_cose_key_public.h"
 #include "trust_anchor_a128_cose_key_secret.h"
 
-bool is_available_char_for_filename(const char c)
-{
-    return (('a' <= c && c <= 'z') ||
-            ('A' <= c && c <= 'Z') ||
-            ('0' <= c && c <= '9') ||
-            ('_' == c) ||
-            ('.' == c) ||
-            ('-' == c));
-}
-
-suit_err_t suit_component_identifier_to_filename(const suit_component_identifier_t *comp_id,
-                                                 const size_t max_filename_len,
-                                                 char filename[])
-{
-    size_t pos = 0;
-
-    pos += sprintf(&filename[pos], "./tmp");
-    for (size_t i = 0; i < comp_id->len; i++) {
-        if (pos + 1 + 1 > max_filename_len) {
-            return SUIT_ERR_NO_MEMORY;
-        }
-        pos += sprintf(&filename[pos], "/");
-
-        if (pos + comp_id->identifier[i].len + 1 > max_filename_len) {
-            return SUIT_ERR_NO_MEMORY;
-        }
-        for (size_t j = 0; j < comp_id->identifier[i].len; j++) {
-            if (is_available_char_for_filename(comp_id->identifier[i].ptr[j])) {
-                filename[pos++] = comp_id->identifier[i].ptr[j];
-            }
-            else {
-                pos += sprintf(&filename[pos], "%02x", comp_id->identifier[i].ptr[j]);
-            }
-        }
-    }
-    filename[pos] = '\0';
-
-    return SUIT_SUCCESS;
-}
-
 const uint8_t tc_uri[] = {
     0x68, 0x74, 0x74, 0x70, 0x73, 0x3A, 0x2F, 0x2F, 0x65, 0x78,
     0x61, 0x6D, 0x70, 0x6C, 0x65, 0x2E, 0x6F, 0x72, 0x67, 0x2F,
