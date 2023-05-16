@@ -13,6 +13,7 @@
 
 void test_csuit_rollback(void);
 void test_csuit_get_digest(void);
+void test_component_identifier_to_filename(void);
 void test_csuit_suit_encode_buf(void);
 void test_csuit_canonical_cbor(void);
 void test_csuit_without_authentication_wrapper(void);
@@ -26,6 +27,7 @@ int main(int argc, char *argv[])
     suite = CU_add_suite("SUIT", NULL, NULL);
     CU_add_test(suite, "test_csuit_rollback", test_csuit_rollback);
     CU_add_test(suite, "test_csuit_get_digest", test_csuit_get_digest);
+    CU_add_test(suite, "test_component_identifier_to_filename", test_component_identifier_to_filename);
     CU_add_test(suite, "test_csuit_suit_encode_buf", test_csuit_suit_encode_buf);
     CU_add_test(suite, "test_csuit_without_authentication_wrapper", test_csuit_without_authentication_wrapper);
     CU_add_test(suite, "test_csuit_canonical_cbor", test_csuit_canonical_cbor);
@@ -192,7 +194,34 @@ void test_csuit_get_digest(void)
     CU_ASSERT_EQUAL(digest.bytes.len, 32);
 }
 
-void test_csuit_suit_encode_buf(void) {
+void test_component_identifier_to_filename(void)
+{
+    char c0[] = "TEEP-Device";
+    char c1[] = "SecureFS";
+    uint8_t c2[] = {0x8D, 0x82, 0x57, 0x3A, 0x92, 0x6D, 0x47, 0x54, 0x93, 0x53, 0x32, 0xDC, 0x29, 0x99, 0x7F, 0x74};
+    char c3[] = "ta";
+
+    suit_component_identifier_t c;
+    c.len = 4;
+    c.identifier[0].ptr = (uint8_t *)c0;
+    c.identifier[0].len = strlen(c0);
+    c.identifier[1].ptr = (uint8_t *)c1;
+    c.identifier[1].len = strlen(c1);
+    c.identifier[2].ptr = c2;
+    c.identifier[2].len = sizeof(c2);
+    c.identifier[3].ptr = (uint8_t *)c3;
+    c.identifier[3].len = strlen(c3);
+
+    char filename[SUIT_MAX_NAME_LENGTH];
+    suit_err_t result = suit_component_identifier_to_filename(&c, SUIT_MAX_NAME_LENGTH, filename);
+
+    char expected_filename[] = "./tmp/TEEP-Device/SecureFS/8d82573a926d4754935332dc29997f74/ta";
+    CU_ASSERT_EQUAL(result, SUIT_SUCCESS);
+    CU_ASSERT_STRING_EQUAL(filename, expected_filename);
+}
+
+void test_csuit_suit_encode_buf(void)
+{
     suit_err_t result;
     UsefulBuf_MAKE_STACK_UB(buf, 16);
     suit_encode_t suit_encode = {
