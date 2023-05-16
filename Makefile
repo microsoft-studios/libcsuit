@@ -55,9 +55,10 @@ doc:
 	mkdir -p ./bin
 	$(CC) -shared $^ $(CFLAGS) $(INC) -o $@
 
+./obj/src/:
+	mkdir -p $@
 
-$(OBJDIR)/%.o: %.c
-	mkdir -p $(dir $@)
+$(OBJDIR)/%.o: %.c ./obj/src/
 	$(CC) $(CFLAGS) $(INC) -o $@ -c $<
 
 ifeq ($(PREFIX),)

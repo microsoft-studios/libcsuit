@@ -44,6 +44,7 @@ all: $(TARGET)
 .PHONY: run
 run: all
 	$(TARGET) ./testfiles/raw_image.bin ./testfiles/encrypted_image.bin ./testfiles/encryption_info.cose
+	$(TARGET) ./testfiles/config.json ./testfiles/encrypted_config.bin ./testfiles/encryption_info_config.cose
 
 .PHONY: clean
 clean:
