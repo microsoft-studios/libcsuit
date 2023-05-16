@@ -64,14 +64,14 @@
         / parameter-uri / 21: "http://example.com/dependent.suit"
       },
       / directive-fetch / 21, 2,
-      / condition-image-match / 3, 15,
+      / condition-image-match / 3, 15
     ] >>,
     / install / 17: << [
       / directive-set-component-index / 12, 1,
       / directive-override-parameters / 20, {
         / parameter-image-digest / 3: << [
-          / parameter-algorithm-id: / -16 / SHA256 /,
-          / parameter-bytes: / h'6EA128D7BB19B86F77C4227F2A29F22026A41958ACC45CC0A35BA388B13E2F51'
+          / digest-algorithm-id: / -16 / SHA256 /,
+          / digest-bytes: / h'6EA128D7BB19B86F77C4227F2A29F22026A41958ACC45CC0A35BA388B13E2F51'
         ] >>
       },
       / condition-dependency-integrity / 7, 15,
