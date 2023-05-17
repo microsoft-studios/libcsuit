@@ -740,76 +740,60 @@ suit_err_t suit_print_value(QCBORDecodeContext *context,
     return SUIT_SUCCESS;
 }
 
-suit_err_t suit_print_cose_key(UsefulBufC cose_key)
+suit_err_t suit_print_cose_key(QCBORDecodeContext *context,
+                               QCBORItem *item,
+                               const uint8_t indent_space,
+                               const uint8_t indent_delta)
 {
-    QCBORDecodeContext context;
-    QCBORItem item;
-    QCBORDecode_Init(&context, cose_key, QCBOR_DECODE_MODE_NORMAL);
-    QCBORDecode_EnterMap(&context, &item);
-    printf("{");
-    size_t len = item.val.uCount;
+    if (item->uDataType != QCBOR_TYPE_MAP) {
+        return SUIT_ERR_INVALID_TYPE_OF_VALUE;
+    }
+    printf("{\n");
+    size_t len = item->val.uCount;
     int64_t kty = 0;
     for (size_t i = 0; i < len; i++) {
-        QCBORDecode_GetNext(&context, &item);
-        if (item.uLabelType != QCBOR_TYPE_INT64 &&
-            item.uLabelType != QCBOR_TYPE_UINT64) {
+        QCBORDecode_GetNext(context, item);
+        if (item->uLabelType != QCBOR_TYPE_INT64 &&
+            item->uLabelType != QCBOR_TYPE_UINT64) {
             return SUIT_ERR_INVALID_TYPE_OF_KEY;
         }
-        if (item.uLabelType == QCBOR_TYPE_UINT64 && item.label.uint64 > INT64_MAX) {
+        if (item->uLabelType == QCBOR_TYPE_UINT64 && item->label.uint64 > INT64_MAX) {
             return SUIT_ERR_INVALID_KEY;
         }
-        switch (item.label.int64) {
+        switch (item->label.int64) {
         case 1: /* always kty */
-            kty = item.val.int64;
+            kty = item->val.int64;
         case -1: /* crv if kty == EC2 */
         case -2: /* x if kty == EC2 */
         case -3: /* y if kty == EC2 */
-            printf("/ %s / %ld: ", suit_cose_key_key_to_str(kty, item.label.int64), item.label.int64);
-            suit_print_value(&context, &item);
-            if (item.uDataType == QCBOR_TYPE_INT64 ||
-                item.uDataType == QCBOR_TYPE_UINT64) {
-                if (item.uDataType == QCBOR_TYPE_UINT64 && item.val.uint64 > INT64_MAX) {
+            printf("%*s/ %s / %ld: ", indent_space + indent_delta, "", suit_cose_key_key_to_str(kty, item->label.int64), item->label.int64);
+            suit_print_value(context, item);
+            if (item->uDataType == QCBOR_TYPE_INT64 ||
+                item->uDataType == QCBOR_TYPE_UINT64) {
+                if (item->uDataType == QCBOR_TYPE_UINT64 && item->val.uint64 > INT64_MAX) {
                     return SUIT_ERR_INVALID_VALUE;
                 }
-                suit_print_cose_key_value_annotation(kty, item.label.int64, item.val.int64);
+                suit_print_cose_key_value_annotation(kty, item->label.int64, item->val.int64);
             }
             break;
         }
         if (i + 1 != len) {
-            printf(", ");
+            printf(",");
         }
+        printf("\n");
     }
-    printf("}");
-    QCBORDecode_ExitMap(&context);
-    QCBORError error = QCBORDecode_Finish(&context);
-    if (error != QCBOR_SUCCESS) {
-        return suit_error_from_qcbor_error(error);
-    }
+    printf("%*s}", indent_space, "");
     return SUIT_SUCCESS;
 }
 
-void suit_print_cose_header_ephemeral(QCBORItem *item)
-{
-    if (item->uDataType != QCBOR_TYPE_BYTE_STRING) {
-        goto error;
-    }
-    printf("<< ");
-    suit_err_t result = suit_print_cose_key(item->val.string);
-    if (result != SUIT_SUCCESS) {
-        goto error;
-    }
-    printf(" >>");
-
-    return;
-error:
-    printf("(not ephemeral)");
-}
-
-void suit_print_cose_header_value(QCBORItem *item)
+void suit_print_cose_header_value(QCBORDecodeContext *context,
+                                  QCBORItem *item,
+                                  const uint8_t indent_space,
+                                  const uint8_t indent_delta)
 {
     switch (item->label.uint64) {
     case -1: /* ephemeral */
-        suit_print_cose_header_ephemeral(item);
+        suit_print_cose_key(context, item, indent_space, indent_delta);
         break;
     case 1: /* alg */
         printf("%ld / %s /", item->val.int64, suit_cose_alg_to_str(item->val.int64));
@@ -840,7 +824,7 @@ suit_err_t suit_print_cose_header(QCBORDecodeContext *context,
             return result;
         }
         printf("\n%*s/ %s / %ld: ", indent_space + indent_delta, "", suit_cose_protected_key_to_str(item.label.int64), item.label.int64);
-        suit_print_cose_header_value(&item);
+        suit_print_cose_header_value(context, &item, indent_space + indent_delta, indent_delta);
         if (i + 1 != len) {
             printf(",");
         }
