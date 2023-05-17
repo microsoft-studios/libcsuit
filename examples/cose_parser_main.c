@@ -35,10 +35,10 @@ int main(int argc, const char *argv[])
         return EXIT_FAILURE;
     }
     suit_print_hex_in_max(cose_buf.ptr, cose_buf.len, 512);
-    printf("\n");
+    printf("\n\n");
 
     // Print cose file.
-    printf("main : Print COSE file.\n");
+    printf("main : Print COSE message.\n");
     suit_err_t result = suit_print_encryption_info(&cose_buf, 0, 2);
     printf("\n");
     if (result != SUIT_SUCCESS) {
