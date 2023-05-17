@@ -277,6 +277,8 @@ char* suit_parameter_key_to_str(suit_parameter_key_t parameter)
 char* suit_cose_protected_key_to_str(int64_t key)
 {
     switch (key) {
+    case -1:
+        return "ephemeral";
     case 1:
         return "alg";
     case 2:
@@ -392,20 +394,95 @@ char* suit_cose_alg_to_str(int64_t id)
     return NULL;
 }
 
-void suit_print_cose_header_value(QCBORItem *item)
+void suit_print_cose_key_value_annotation(int64_t kty, int64_t key, int64_t value)
 {
-    switch (item->label.uint64) {
-    case 1: /* alg */
-        printf("%ld / %s /", item->val.int64, suit_cose_alg_to_str(item->val.int64));
-        break;
-    case 4: /* kid */
-    case 5: /* IV */
-        suit_print_hex(item->val.string.ptr, item->val.string.len);
-        break;
-    default:
-        printf("(UNKNOWN)");
-        break;
+    if (key == 1 /* kty */) {
+        switch (value) {
+        case 1:
+            printf(" / OKP /");
+            return;
+        case 2:
+            printf(" / EC2 /");
+            return;
+        case 3:
+            printf(" / RSA /");
+            return;
+        case 4:
+            printf(" / Symmetric /");
+            return;
+        case 5:
+            printf(" / HSS-LMS /");
+            return;
+        case 6:
+            printf(" / WalnutDSA /");
+            return;
+        }
     }
+    else if (key == -1 /* crv */) {
+        if (kty == 2 /* EC2 */) {
+            switch (value) {
+            case 1:
+                printf(" / P-256 /");
+                return;
+            case 2:
+                printf(" / P-384 /");
+                return;
+            case 3:
+                printf(" / P-521 /");
+                return;
+            case 4:
+                printf(" / X25519 /");
+                return;
+            case 5:
+                printf(" / X448 /");
+                return;
+            case 6:
+                printf(" / Ed25519 /");
+                return;
+            case 7:
+                printf(" / Ed448 /");
+                return;
+            case 8:
+                printf(" / secp256k1 /");
+                return;
+            }
+        }
+    }
+}
+
+char* suit_cose_key_key_to_str(int64_t kty, int64_t key)
+{
+    switch (key) {
+    case 1:
+        return "kty";
+    case -1:
+        switch (kty) {
+        case 2: /* EC2 */
+            return "crv";
+        // TODO: define also for OKP, RSA, Symmetric, ...
+        }
+        break;
+    case -2:
+        switch (kty) {
+        case 2: /* EC2 */
+            return "x";
+        }
+        break;
+    case -3:
+        switch (kty) {
+        case 2: /* EC2 */
+            return "y";
+        }
+        break;
+    case -4:
+        switch (kty) {
+        case 2: /* EC2 */
+            return "d";
+        }
+        break;
+
+    }
+    return NULL;
 }
 
 bool is_available_char_for_filename(const char c)
@@ -661,6 +738,90 @@ suit_err_t suit_print_value(QCBORDecodeContext *context,
         return SUIT_ERR_INVALID_TYPE_OF_VALUE;
     }
     return SUIT_SUCCESS;
+}
+
+suit_err_t suit_print_cose_key(UsefulBufC cose_key)
+{
+    QCBORDecodeContext context;
+    QCBORItem item;
+    QCBORDecode_Init(&context, cose_key, QCBOR_DECODE_MODE_NORMAL);
+    QCBORDecode_EnterMap(&context, &item);
+    printf("{");
+    size_t len = item.val.uCount;
+    int64_t kty = 0;
+    for (size_t i = 0; i < len; i++) {
+        QCBORDecode_GetNext(&context, &item);
+        if (item.uLabelType != QCBOR_TYPE_INT64 &&
+            item.uLabelType != QCBOR_TYPE_UINT64) {
+            return SUIT_ERR_INVALID_TYPE_OF_KEY;
+        }
+        if (item.uLabelType == QCBOR_TYPE_UINT64 && item.label.uint64 > INT64_MAX) {
+            return SUIT_ERR_INVALID_KEY;
+        }
+        switch (item.label.int64) {
+        case 1: /* always kty */
+            kty = item.val.int64;
+        case -1: /* crv if kty == EC2 */
+        case -2: /* x if kty == EC2 */
+        case -3: /* y if kty == EC2 */
+            printf("/ %s / %ld: ", suit_cose_key_key_to_str(kty, item.label.int64), item.label.int64);
+            suit_print_value(&context, &item);
+            if (item.uDataType == QCBOR_TYPE_INT64 ||
+                item.uDataType == QCBOR_TYPE_UINT64) {
+                if (item.uDataType == QCBOR_TYPE_UINT64 && item.val.uint64 > INT64_MAX) {
+                    return SUIT_ERR_INVALID_VALUE;
+                }
+                suit_print_cose_key_value_annotation(kty, item.label.int64, item.val.int64);
+            }
+            break;
+        }
+        if (i + 1 != len) {
+            printf(", ");
+        }
+    }
+    printf("}");
+    QCBORDecode_ExitMap(&context);
+    QCBORError error = QCBORDecode_Finish(&context);
+    if (error != QCBOR_SUCCESS) {
+        return suit_error_from_qcbor_error(error);
+    }
+    return SUIT_SUCCESS;
+}
+
+void suit_print_cose_header_ephemeral(QCBORItem *item)
+{
+    if (item->uDataType != QCBOR_TYPE_BYTE_STRING) {
+        goto error;
+    }
+    printf("<< ");
+    suit_err_t result = suit_print_cose_key(item->val.string);
+    if (result != SUIT_SUCCESS) {
+        goto error;
+    }
+    printf(" >>");
+
+    return;
+error:
+    printf("(not ephemeral)");
+}
+
+void suit_print_cose_header_value(QCBORItem *item)
+{
+    switch (item->label.uint64) {
+    case -1: /* ephemeral */
+        suit_print_cose_header_ephemeral(item);
+        break;
+    case 1: /* alg */
+        printf("%ld / %s /", item->val.int64, suit_cose_alg_to_str(item->val.int64));
+        break;
+    case 4: /* kid */
+    case 5: /* IV */
+        suit_print_hex(item->val.string.ptr, item->val.string.len);
+        break;
+    default:
+        printf("(UNKNOWN)");
+        break;
+    }
 }
 
 
