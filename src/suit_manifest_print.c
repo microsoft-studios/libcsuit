@@ -419,17 +419,8 @@ void suit_print_cose_key_value_annotation(int64_t kty, int64_t key, int64_t valu
         }
     }
     else if (key == -1 /* crv */) {
-        if (kty == 2 /* EC2 */) {
+        if (kty == 1 /* OKP */) {
             switch (value) {
-            case 1:
-                printf(" / P-256 /");
-                return;
-            case 2:
-                printf(" / P-384 /");
-                return;
-            case 3:
-                printf(" / P-521 /");
-                return;
             case 4:
                 printf(" / X25519 /");
                 return;
@@ -441,6 +432,19 @@ void suit_print_cose_key_value_annotation(int64_t kty, int64_t key, int64_t valu
                 return;
             case 7:
                 printf(" / Ed448 /");
+                return;
+            }
+        }
+        else if (kty == 2 /* EC2 */) {
+            switch (value) {
+            case 1:
+                printf(" / P-256 /");
+                return;
+            case 2:
+                printf(" / P-384 /");
+                return;
+            case 3:
+                printf(" / P-521 /");
                 return;
             case 8:
                 printf(" / secp256k1 /");
@@ -457,30 +461,96 @@ char* suit_cose_key_key_to_str(int64_t kty, int64_t key)
         return "kty";
     case -1:
         switch (kty) {
+        case 1: /* OKP */
         case 2: /* EC2 */
             return "crv";
-        // TODO: define also for OKP, RSA, Symmetric, ...
+        case 3: /* RSA */
+            return "n";
+        case 4: /* Symmetric */
+            return "k";
+        case 5: /* HSS-LMS */
+            return "pub";
+        case 6: /* WalnutDSA */
+            return "N";
         }
         break;
     case -2:
         switch (kty) {
+        case 1: /* OKP */
         case 2: /* EC2 */
             return "x";
+        case 3: /* RSA */
+            return "e";
+        case 6: /* WalnutDSA */
+            return "q";
         }
         break;
     case -3:
         switch (kty) {
         case 2: /* EC2 */
             return "y";
+        case 3: /* RSA */
+            return "d";
+        case 6: /* WalnutDSA */
+            return "t-values";
         }
         break;
     case -4:
         switch (kty) {
         case 2: /* EC2 */
             return "d";
+        case 3: /* RSA */
+            return "p";
+        case 6: /* WalnutDSA */
+            return "matrix 1";
         }
         break;
-
+    case -5:
+        switch (kty) {
+        case 3: /* RSA */
+            return "q";
+        case 6: /* WalnutDSA */
+            return "permutation 1";
+        }
+        break;
+    case -6:
+        switch (kty) {
+        case 3: /* RSA */
+            return "dP";
+        case 6: /* WalnutDSA */
+            return "matrix 2";
+        }
+        break;
+    case -7:
+        if (kty == 3 /* RSA */) {
+            return "dQ";
+        }
+        break;
+    case -8:
+        if (kty == 3 /* RSA */) {
+            return "qInv";
+        }
+        break;
+    case -9:
+        if (kty == 3 /* RSA */) {
+            return "other";
+        }
+        break;
+    case -10:
+        if (kty == 3 /* RSA */) {
+            return "r_i";
+        }
+        break;
+    case -11:
+        if (kty == 3 /* RSA */) {
+            return "d_i";
+        }
+        break;
+    case -12:
+        if (kty == 3 /* RSA */) {
+            return "t_i";
+        }
+        break;
     }
     return NULL;
 }
