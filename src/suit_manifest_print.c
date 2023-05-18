@@ -688,7 +688,7 @@ suit_err_t suit_print_hex(const uint8_t *array, const size_t size)
     if (array == NULL) {
         return SUIT_ERR_FATAL;
     }
-    if (suit_printable_hex_string((const char *)array, size)) {
+    if (size > 0 && suit_printable_hex_string((const char *)array, size)) {
         printf("'");
         suit_print_tstr_body((const char *)array, size);
         printf("'");
