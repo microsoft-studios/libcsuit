@@ -944,6 +944,20 @@ suit_err_t suit_print_cmd_seq(const suit_decode_mode_t mode,
             printf("%lu", cmd_seq->commands[i].value.uint64);
             break;
 
+        /* SUIT_Command_Sequence */
+        case SUIT_DIRECTIVE_RUN_SEQUENCE:
+            result = suit_decode_command_sequence(mode, &cmd_seq->commands[i].value.string, &tmp_cmd_seq);
+            if (result != SUIT_SUCCESS) {
+                break;
+            }
+            printf("%*s<< [\n", indent_space + indent_delta, "");
+            result = suit_print_cmd_seq(mode, &tmp_cmd_seq, indent_space + indent_delta, indent_delta);
+            if (result != SUIT_SUCCESS) {
+                break;
+            }
+            printf("%*s] >>", indent_space + indent_delta, "");
+            break;
+
         /* IndexArg = uint // true // [ +uint ] */
         case SUIT_DIRECTIVE_SET_COMPONENT_INDEX:
             if (cmd_seq->commands[i].value.index_arg.len == 0) {
@@ -1005,9 +1019,6 @@ suit_err_t suit_print_cmd_seq(const suit_decode_mode_t mode,
             }
             printf("\n%*s]", indent_space, "");
             break;
-
-        /* SUIT_Command_Sequence */
-        case SUIT_DIRECTIVE_RUN_SEQUENCE:
 
         /* SUIT_Override_Mult_Arg */
         //case SUIT_DIRECTIVE_OVERRIDE_MULTIPLE:

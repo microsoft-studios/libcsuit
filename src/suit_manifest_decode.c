@@ -292,6 +292,18 @@ suit_err_t suit_decode_command_shared_sequence_from_item(const suit_decode_mode_
             cmd_seq->len++;
             break;
 
+        /* bstr */
+        case SUIT_DIRECTIVE_RUN_SEQUENCE:
+            result = suit_qcbor_get_next(context, item, QCBOR_TYPE_BYTE_STRING);
+            if (result != SUIT_SUCCESS) {
+                return result;
+            }
+            cmd_seq->commands[cmd_seq->len].label = label;
+            cmd_seq->commands[cmd_seq->len].value.string.ptr = (uint8_t *)item->val.string.ptr;
+            cmd_seq->commands[cmd_seq->len].value.string.len = item->val.string.len;
+            cmd_seq->len++;
+            break;
+
         /* uint, true, [ + uint ] */
         case SUIT_DIRECTIVE_SET_COMPONENT_INDEX:
             result = suit_qcbor_get_next(context, item, QCBOR_TYPE_ANY);
@@ -367,11 +379,6 @@ suit_err_t suit_decode_command_shared_sequence_from_item(const suit_decode_mode_
                 cmd_seq->len++;
             }
             break;
-
-        // TODO
-        /* SUIT_Command_Sequence */
-        case SUIT_DIRECTIVE_RUN_SEQUENCE:
-            return SUIT_ERR_NOT_IMPLEMENTED;
 
         /* SUIT_Override_Mult_Arg */
         //case SUIT_DIRECTIVE_OVERRIDE_MULTIPLE:
