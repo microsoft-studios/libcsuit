@@ -48,17 +48,15 @@ doc:
 	doxygen Doxyfile
 
 ./bin/$(NAME).a: $(OBJS)
-	mkdir -p ./bin
 	$(AR) -r $@ $^
 
 ./bin/$(NAME).so: $(OBJS)
-	mkdir -p ./bin
 	$(CC) -shared $^ $(CFLAGS) $(INC) -o $@
 
-./obj/src/:
-	mkdir -p $@
+./obj/src:
+	@if [ ! -d "./obj/src" ]; then mkdir -p ./obj/src; fi
 
-$(OBJDIR)/%.o: %.c ./obj/src/
+$(OBJDIR)/%.o: %.c | ./obj/src
 	$(CC) $(CFLAGS) $(INC) -o $@ -c $<
 
 ifeq ($(PREFIX),)
@@ -70,7 +68,7 @@ define install-header
 
 endef
 
-install: ./bin/$(NAME).a $(PUBLIC_INTERFACE)
+install: all $(PUBLIC_INTERFACE)
 	install -d $(DESTDIR)$(PREFIX)/lib/
 	install -m 644 ./bin/$(NAME).a $(DESTDIR)$(PREFIX)/lib/
 	install -d $(DESTDIR)$(PREFIX)/include/csuit
@@ -94,5 +92,5 @@ test: build_test
 	$(MAKE) -C test MBEDTLS=$(MBEDTLS) run
 
 clean:
-	$(RM) -f $(OBJS) ./bin/$(NAME).a ./bin/$(NAME).so
+	$(RM) $(OBJS) ./bin/$(NAME).a ./bin/$(NAME).so
 	$(MAKE) -C test clean

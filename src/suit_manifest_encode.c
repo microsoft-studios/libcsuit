@@ -324,6 +324,12 @@ suit_err_t suit_encode_shared_sequence(suit_command_sequence_t *cmd_seq,
             QCBOREncode_AddUInt64(&context, item->value.uint64);
             break;
 
+        /* bstr */
+        case SUIT_DIRECTIVE_RUN_SEQUENCE:
+            QCBOREncode_AddUInt64(&context, item->label);
+            QCBOREncode_AddBytes(&context, (UsefulBufC){.ptr = item->value.string.ptr, .len = item->value.string.len});
+            break;
+
         /* uint, true, [ + uint ] */
         case SUIT_DIRECTIVE_SET_COMPONENT_INDEX:
             if (item->value.index_arg.len == 0) {
@@ -372,7 +378,6 @@ suit_err_t suit_encode_shared_sequence(suit_command_sequence_t *cmd_seq,
             i += j - 1;
             break;
 
-        case SUIT_DIRECTIVE_RUN_SEQUENCE:
         default:
             return SUIT_ERR_NOT_IMPLEMENTED;
         }

@@ -950,12 +950,12 @@ suit_err_t suit_print_cmd_seq(const suit_decode_mode_t mode,
             if (result != SUIT_SUCCESS) {
                 break;
             }
-            printf("%*s<< [\n", indent_space + indent_delta, "");
+            printf("<< [\n");
             result = suit_print_cmd_seq(mode, &tmp_cmd_seq, indent_space + indent_delta, indent_delta);
             if (result != SUIT_SUCCESS) {
                 break;
             }
-            printf("%*s] >>", indent_space + indent_delta, "");
+            printf("%*s] >>", indent_space, "");
             break;
 
         /* IndexArg = uint // true // [ +uint ] */
