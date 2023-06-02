@@ -18,9 +18,9 @@ process | :green_square::green_square::green_square: | :green_square::green_squa
 ### SUIT Update Management
 Operation | Metadata | Condition | Directive | Parameter | Text
 ---|---|---|---|---|---
-decode | :green_square: | :green_square::green_square::green_square::green_square::green_square: | :red_square::red_square: | :green_square::green_square::green_square::red_square::red_square: | :green_square:
-encode | :green_square: | :green_square::green_square::green_square::green_square::green_square: | :red_square::red_square: | :green_square::green_square::green_square::red_square::red_square: | :green_square:
-process | :green_square: | :green_square::green_square::green_square::green_square::red_square: | :red_square::red_square: | :green_square::green_square::green_square::red_square::red_square: | :green_square:
+decode | :green_square: | :green_square::green_square::green_square::green_square::green_square: | :red_square::red_square::red_square: | :green_square::green_square::green_square::red_square::red_square: | :green_square:
+encode | :green_square: | :green_square::green_square::green_square::green_square::green_square: | :red_square::red_square::red_square: | :green_square::green_square::green_square::red_square::red_square: | :green_square:
+process | :green_square: | :green_square::green_square::green_square::green_square::red_square: | :red_square::red_square::red_square: | :green_square::green_square::green_square::red_square::red_square: | :green_square:
 ### SUIT Encrypted Payload
 Operation | Metadata | Condition | Directive | Parameter | Text
 ---|---|---|---|---|---
@@ -136,7 +136,7 @@ Swap | 31 | suit-directive-swap | SUIT Manifest | N/M | RWX
 Run Sequence | 32 | suit-directive-run-sequence | SUIT Manifest | OPTIONAL | RWX
 Unlink | 33 | suit-directive-unlink | SUIT Multiple Trust Domains | N/M | RWX
 Override Multiple | ? | suit-directive-override-multiple | SUIT Update Management | N/M | ---
-Copy Params | - | suit-directive-copy-params | SUIT Update Management | N/M | ---
+Copy Params | ? | suit-directive-copy-params | SUIT Update Management | N/M | ---
 
 ### SUIT Parameters
 
