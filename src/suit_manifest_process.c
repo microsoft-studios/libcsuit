@@ -19,7 +19,8 @@
 suit_err_t suit_set_parameters(QCBORDecodeContext *context,
                                const suit_con_dir_key_t directive,
                                const suit_index_t *suit_index,
-                               suit_parameter_args_t parameters[])
+                               suit_parameter_args_t parameters[],
+                               const bool may_soft_failure)
 {
     suit_err_t result = SUIT_SUCCESS;
     QCBORItem item;
@@ -114,6 +115,10 @@ suit_err_t suit_set_parameters(QCBORDecodeContext *context,
 
         /* bool */
         case SUIT_PARAMETER_SOFT_FAILURE:
+            if (!may_soft_failure) {
+                result = SUIT_ERR_INVALID_VALUE;
+                goto error;
+            }
             QCBORDecode_GetBool(context, &val.b);
             for (size_t j = 0; j < suit_index->len; j++) {
                 uint8_t tmp_index = suit_index->index[j];
@@ -408,8 +413,8 @@ suit_process_flag_t suit_manifest_key_to_process_flag(const suit_manifest_key_t 
 
 suit_err_t suit_process_fetch(suit_extracted_t *extracted,
                               const suit_parameter_args_t parameters[],
-                              const suit_rep_policy_t report,
                               const suit_index_t *suit_index,
+                              const suit_rep_policy_t report,
                               suit_inputs_t *suit_inputs)
 {
     suit_err_t result = SUIT_SUCCESS;
@@ -547,8 +552,7 @@ suit_err_t suit_process_condition(suit_extracted_t *extracted,
                                   suit_parameter_args_t parameters[],
                                   const suit_index_t *suit_index,
                                   suit_rep_policy_t report,
-                                  const suit_inputs_t *suit_inputs,
-                                  bool in_try_each)
+                                  const suit_inputs_t *suit_inputs)
 {
     suit_err_t result = SUIT_SUCCESS;
 
@@ -682,9 +686,6 @@ suit_err_t suit_process_condition(suit_extracted_t *extracted,
 
         case SUIT_CONDITION_IS_DEPENDENCY:
             result = suit_index_is_dependency(extracted, tmp_index);
-            if (in_try_each) {
-                return (result == SUIT_SUCCESS) ? SUIT_SUCCESS : SUIT_ERR_ABORT;
-            }
             break;
 
         /* draft-ietf-suit-trust-domains */
@@ -696,11 +697,11 @@ suit_err_t suit_process_condition(suit_extracted_t *extracted,
         }
         if (result != SUIT_SUCCESS) {
             /* already handled without callback */
-            return (in_try_each) ? SUIT_ERR_ABORT : result;
+            return result;
         }
         result = suit_condition_callback(args);
         if (result != SUIT_SUCCESS) {
-            return (in_try_each) ? SUIT_ERR_ABORT : result;
+            return result;
         }
     }
     return result;
@@ -708,8 +709,8 @@ suit_err_t suit_process_condition(suit_extracted_t *extracted,
 
 suit_err_t suit_process_write(const suit_extracted_t *extracted,
                               const suit_parameter_args_t parameters[],
-                              const suit_rep_policy_t report,
                               const suit_index_t *suit_index,
+                              const suit_rep_policy_t report,
                               suit_inputs_t *suit_inputs)
 {
     for (size_t i = 0; i < suit_index->len; i++) {
@@ -748,9 +749,9 @@ suit_err_t suit_process_write(const suit_extracted_t *extracted,
 
 suit_err_t suit_process_copy_swap(const suit_extracted_t *extracted,
                                   const suit_parameter_args_t parameters[],
-                                  const suit_rep_policy_t report,
-                                  const suit_index_t *suit_index,
                                   bool is_swap,
+                                  const suit_index_t *suit_index,
+                                  const suit_rep_policy_t report,
                                   suit_inputs_t *suit_inputs)
 {
     for (size_t i = 0; i < suit_index->len; i++) {
@@ -797,8 +798,8 @@ suit_err_t suit_process_copy_swap(const suit_extracted_t *extracted,
 
 suit_err_t suit_process_unlink(const suit_extracted_t *extracted,
                                const suit_parameter_args_t parameters[],
-                               const suit_rep_policy_t report,
                                const suit_index_t *suit_index,
+                               const suit_rep_policy_t report,
                                suit_inputs_t *suit_inputs)
 {
 
@@ -826,14 +827,46 @@ suit_err_t suit_process_command_sequence_buf(suit_extracted_t *extracted,
                                              UsefulBufC buf,
                                              suit_index_t *suit_index,
                                              suit_inputs_t *suit_inputs,
-                                             bool in_try_each);
+                                             const bool may_soft_failure);
+
+suit_err_t suit_process_run_sequence(QCBORDecodeContext *context,
+                                     suit_extracted_t *extracted,
+                                     const suit_manifest_key_t command_key,
+                                     suit_parameter_args_t parameters[],
+                                     suit_index_t *suit_index,
+                                     const suit_rep_policy_t report,
+                                     suit_inputs_t *suit_inputs)
+{
+    UsefulBufC buf;
+    QCBORDecode_GetByteString(context, &buf);
+    QCBORError error = QCBORDecode_GetError(context);
+    if (error != QCBOR_SUCCESS) {
+        return suit_error_from_qcbor_error(error);
+    }
+
+    for (size_t i = 0; i < suit_index->len; i++) {
+        suit_index_t tmp_suit_index;
+        tmp_suit_index.len = 1;
+        tmp_suit_index.index[0] = suit_index->index[i];
+
+        // soft-failure is false by default in run-sequence
+        parameters[suit_index->index[i]].soft_failure = false;
+
+        suit_err_t result = suit_process_command_sequence_buf(extracted, command_key, parameters, buf, &tmp_suit_index, suit_inputs, true);
+        if (result != SUIT_SUCCESS && !parameters[suit_index->index[i]].soft_failure) {
+            return result;
+        }
+    }
+
+    return SUIT_SUCCESS;
+}
 
 suit_err_t suit_process_try_each(QCBORDecodeContext *context,
                                  suit_extracted_t *extracted,
                                  const suit_manifest_key_t command_key,
                                  suit_parameter_args_t parameters[],
-                                 const suit_rep_policy_t report,
                                  suit_index_t *suit_index,
+                                 const suit_rep_policy_t report,
                                  suit_inputs_t *suit_inputs)
 {
     suit_err_t result;
@@ -864,6 +897,10 @@ suit_err_t suit_process_try_each(QCBORDecodeContext *context,
                     suit_index_t tmp_suit_index;
                     tmp_suit_index.len = 1;
                     tmp_suit_index.index[0] = suit_index->index[j];
+
+                    // soft-failure is true by default in try-each
+                    parameters[suit_index->index[j]].soft_failure = true;
+
                     result = suit_process_command_sequence_buf(extracted, command_key, parameters, item.val.string, &tmp_suit_index, suit_inputs, true);
                     if (result == SUIT_SUCCESS) {
                         done_any = true;
@@ -889,7 +926,7 @@ suit_err_t suit_process_command_sequence_buf(suit_extracted_t *extracted,
                                              UsefulBufC buf,
                                              suit_index_t *suit_index,
                                              suit_inputs_t *suit_inputs,
-                                             bool in_try_each)
+                                             const bool may_soft_failure)
 {
     suit_err_t result = SUIT_SUCCESS;
     suit_con_dir_key_t condition_directive_key = SUIT_CONDITION_INVALID;
@@ -925,10 +962,10 @@ suit_err_t suit_process_command_sequence_buf(suit_extracted_t *extracted,
             break;
 
         case SUIT_DIRECTIVE_OVERRIDE_PARAMETERS:
-            result = suit_set_parameters(&context, SUIT_DIRECTIVE_OVERRIDE_PARAMETERS, suit_index, parameters);
+            result = suit_set_parameters(&context, SUIT_DIRECTIVE_OVERRIDE_PARAMETERS, suit_index, parameters, may_soft_failure);
             break;
         case SUIT_DIRECTIVE_SET_PARAMETERS:
-            result = suit_set_parameters(&context, SUIT_DIRECTIVE_SET_PARAMETERS, suit_index, parameters);
+            result = suit_set_parameters(&context, SUIT_DIRECTIVE_SET_PARAMETERS, suit_index, parameters, may_soft_failure);
             break;
 
         case SUIT_DIRECTIVE_INVOKE:
@@ -938,28 +975,28 @@ suit_err_t suit_process_command_sequence_buf(suit_extracted_t *extracted,
 
         case SUIT_DIRECTIVE_FETCH:
             QCBORDecode_GetUInt64(&context, &report.val);
-            result = suit_process_fetch(extracted, parameters, report, suit_index, suit_inputs);
+            result = suit_process_fetch(extracted, parameters, suit_index, report, suit_inputs);
             break;
 
         case SUIT_DIRECTIVE_WRITE:
             QCBORDecode_GetUInt64(&context, &report.val);
-            result = suit_process_write(extracted, parameters, report, suit_index, suit_inputs);
+            result = suit_process_write(extracted, parameters, suit_index, report, suit_inputs);
             break;
         case SUIT_DIRECTIVE_COPY:
             QCBORDecode_GetUInt64(&context, &val.u64);
-            result = suit_process_copy_swap(extracted, parameters, report, suit_index, false, suit_inputs);
+            result = suit_process_copy_swap(extracted, parameters, false, suit_index, report, suit_inputs);
             break;
         case SUIT_DIRECTIVE_SWAP:
             QCBORDecode_GetUInt64(&context, &val.u64);
-            result = suit_process_copy_swap(extracted, parameters, report, suit_index, true, suit_inputs);
+            result = suit_process_copy_swap(extracted, parameters, true, suit_index, report, suit_inputs);
             break;
         case SUIT_DIRECTIVE_UNLINK:
             QCBORDecode_GetUInt64(&context, &val.u64);
-            result = suit_process_unlink(extracted, parameters, report, suit_index, suit_inputs);
+            result = suit_process_unlink(extracted, parameters, suit_index, report, suit_inputs);
             break;
 
         case SUIT_DIRECTIVE_TRY_EACH:
-            result = suit_process_try_each(&context, extracted, command_key, parameters, report, suit_index, suit_inputs);
+            result = suit_process_try_each(&context, extracted, command_key, parameters, suit_index, report, suit_inputs);
             break;
 
         case SUIT_DIRECTIVE_PROCESS_DEPENDENCY:
@@ -1007,11 +1044,14 @@ suit_err_t suit_process_command_sequence_buf(suit_extracted_t *extracted,
         case SUIT_CONDITION_UPDATE_AUTHORIZED:
         case SUIT_CONDITION_VERSION:
             QCBORDecode_GetUInt64(&context, &report.val);
-            result = suit_process_condition(extracted, condition_directive_key, parameters, suit_index, report, suit_inputs, in_try_each);
+            result = suit_process_condition(extracted, condition_directive_key, parameters, suit_index, report, suit_inputs);
+            break;
+
+        case SUIT_DIRECTIVE_RUN_SEQUENCE:
+            result = suit_process_run_sequence(&context, extracted, SUIT_COMMON, parameters, suit_index, report, suit_inputs);
             break;
 
         case SUIT_DIRECTIVE_WAIT:
-        case SUIT_DIRECTIVE_RUN_SEQUENCE:
         case SUIT_DIRECTIVE_INVALID:
             result = SUIT_ERR_NOT_IMPLEMENTED;
         }
@@ -1055,7 +1095,7 @@ error:
 
 suit_err_t suit_process_shared_sequence(suit_extracted_t *extracted,
                                         suit_parameter_args_t parameters[],
-                                        const suit_inputs_t *suit_inputs)
+                                        suit_inputs_t *suit_inputs)
 {
     if (extracted->shared_sequence.len == 0) {
         return SUIT_SUCCESS;
@@ -1067,12 +1107,6 @@ suit_err_t suit_process_shared_sequence(suit_extracted_t *extracted,
     suit_con_dir_key_t condition_directive_key;
     suit_index_t suit_index = (suit_index_t) {.len = 1, .index[0] = 0};
     suit_rep_policy_t report;
-    union {
-        uint64_t u64;
-        int64_t i64;
-        UsefulBufC buf;
-        bool b;
-    } val;
 
     QCBORDecode_Init(&context, extracted->shared_sequence, QCBOR_DECODE_MODE_NORMAL);
     QCBORDecode_EnterArray(&context, &item);
@@ -1093,25 +1127,14 @@ suit_err_t suit_process_shared_sequence(suit_extracted_t *extracted,
         condition_directive_key = item.val.uint64;
         switch (condition_directive_key) {
         case SUIT_DIRECTIVE_SET_COMPONENT_INDEX:
-            // TODO: support also bool or [ + uint ] index
-            QCBORDecode_GetUInt64(&context, &val.u64);
-            if (val.u64 >= extracted->components_len) {
-                result = SUIT_ERR_NO_MEMORY;
-                goto error;
-            }
-            if (val.u64 > UINT8_MAX) {
-                result = SUIT_ERR_INVALID_TYPE_OF_VALUE;
-                goto error;
-            }
-            suit_index.len = 1;
-            suit_index.index[0] = (uint8_t)val.u64;
+            result = suit_set_index(&context, extracted, &suit_index);
             break;
 
         case SUIT_DIRECTIVE_OVERRIDE_PARAMETERS:
-            result = suit_set_parameters(&context, SUIT_DIRECTIVE_OVERRIDE_PARAMETERS, &suit_index, parameters);
+            result = suit_set_parameters(&context, SUIT_DIRECTIVE_OVERRIDE_PARAMETERS, &suit_index, parameters, false);
             break;
         case SUIT_DIRECTIVE_SET_PARAMETERS:
-            result = suit_set_parameters(&context, SUIT_DIRECTIVE_SET_PARAMETERS, &suit_index, parameters);
+            result = suit_set_parameters(&context, SUIT_DIRECTIVE_SET_PARAMETERS, &suit_index, parameters, false);
             break;
 
         case SUIT_CONDITION_VENDOR_IDENTIFIER:
@@ -1129,13 +1152,13 @@ suit_err_t suit_process_shared_sequence(suit_extracted_t *extracted,
         case SUIT_CONDITION_UPDATE_AUTHORIZED:
         case SUIT_CONDITION_VERSION:
             QCBORDecode_GetUInt64(&context, &report.val);
-            result = suit_process_condition(extracted, condition_directive_key, parameters, &suit_index, report, suit_inputs, false);
+            result = suit_process_condition(extracted, condition_directive_key, parameters, &suit_index, report, suit_inputs);
             break;
         case SUIT_DIRECTIVE_TRY_EACH:
-            result = suit_process_try_each(&context, extracted, SUIT_COMMON, parameters, report, &suit_index, NULL);
+            result = suit_process_try_each(&context, extracted, SUIT_COMMON, parameters, &suit_index, report, NULL);
             break;
         case SUIT_DIRECTIVE_RUN_SEQUENCE:
-            result = SUIT_ERR_NOT_IMPLEMENTED;
+            result = suit_process_run_sequence(&context, extracted, SUIT_COMMON, parameters, &suit_index, report, suit_inputs);
             break;
         default:
             result = SUIT_ERR_INVALID_TYPE_OF_KEY;
