@@ -29,7 +29,7 @@
 
 #include "suit_manifest_expU.cbor.h"
 #include "config.json.h"
-#include "suit_manifest_expS1.cbor.h"
+#include "suit_manifest_expS0.cbor.h"
 #include "encrypted_image_aes.bin.h"
 
 const uint8_t tc_uri[] = "https://example.org/8d82573a-926d-4754-9353-32dc29997f74.ta";
@@ -50,7 +50,7 @@ const struct name_data name_data[] = {
     {.name = tc_uri, .name_len = sizeof(tc_uri) - 1, .data = tc_data, .data_len = sizeof(tc_data) - 1},
     {.name = depend_uri, .name_len = sizeof(depend_uri) - 1, .data = suit_manifest_expU_cbor, .data_len = suit_manifest_expU_cbor_len},
     {.name = config_uri, .name_len = sizeof(config_uri) - 1, .data = config_json, .data_len = config_json_len},
-    {.name = dependency_uri, .name_len = sizeof(dependency_uri) - 1, .data = suit_manifest_expS1_cbor, .data_len = suit_manifest_expS1_cbor_len},
+    {.name = dependency_uri, .name_len = sizeof(dependency_uri) - 1, .data = suit_manifest_expS0_cbor, .data_len = suit_manifest_expS0_cbor_len},
     {.name = encrypted_firmware_uri, .name_len = sizeof(encrypted_firmware_uri) - 1, .data = encrypted_image_aes_bin, .data_len = encrypted_image_aes_bin_len},
 };
 

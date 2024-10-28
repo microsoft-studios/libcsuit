@@ -30,7 +30,7 @@ OBJS = $(addprefix ./obj/,$(patsubst %.c,%.o,$(SRCS)))
 BINARIES = \
 	testfiles/suit_manifest_expU.cbor.h \
 	testfiles/config.json.h \
-	testfiles/suit_manifest_expS1.cbor.h \
+	testfiles/suit_manifest_expS0.cbor.h \
 	testfiles/encrypted_image_aes.bin.h
 
 ifeq ($(MBEDTLS),1)
