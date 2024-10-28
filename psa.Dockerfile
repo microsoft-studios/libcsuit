@@ -5,7 +5,7 @@ FROM debian:latest
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
-RUN apt-get -y install curl git gcc make libcunit1-dev python3
+RUN apt-get -y install curl git gcc make xxd libcunit1-dev python3
 
 RUN git clone -b v3.1.0 --depth 1 https://github.com/Mbed-TLS/mbedtls.git /root/mbedtls
 WORKDIR /root/mbedtls

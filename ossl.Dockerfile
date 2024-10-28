@@ -5,7 +5,7 @@ FROM debian:latest
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
-RUN apt-get -y install curl git gcc make libcunit1-dev libssl-dev
+RUN apt-get -y install curl git gcc make xxl libcunit1-dev libssl-dev
 
 RUN git clone --depth 1 https://github.com/laurencelundblade/QCBOR.git /root/QCBOR
 WORKDIR /root/QCBOR

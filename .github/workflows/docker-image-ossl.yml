@@ -16,4 +16,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      run: docker run -t $(docker build -q -f ossl.Dockerfile .)
+      run: |
+        docker build -t libcsit_ossl -f ossl.Dockerfile .
+        docker run -t libcsuit_ossl
