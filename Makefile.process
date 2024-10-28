@@ -12,10 +12,9 @@ LDWRAP = \
 	-Xlinker --wrap=suit_invoke_callback \
 	-Xlinker --wrap=suit_condition_callback
 
-INC = $(CMD_INC) -I ./inc -I ./examples/inc
+INC = $(CMD_INC) -I ./inc -I ./examples/inc -I ./testfiles
 TARGET = ./bin/suit_manifest_process
 SRCS = \
-	examples/suit_manifest_process_main.c \
 	examples/suit_examples_common.c \
 	examples/suit_examples_cose.c \
 	src/suit_common.c \
@@ -25,13 +24,18 @@ SRCS = \
 	src/suit_manifest_callbacks.c \
 	src/suit_manifest_decode.c \
 	src/suit_manifest_encode.c \
-	src/suit_manifest_print.c
+	src/suit_manifest_print.c \
+	examples/suit_manifest_process_main.c
 OBJS = $(addprefix ./obj/,$(patsubst %.c,%.o,$(SRCS)))
+BINARIES = \
+	testfiles/suit_manifest_expU.cbor.h \
+	testfiles/config.json.h \
+	testfiles/suit_manifest_expS1.cbor.h \
+	testfiles/encrypted_image_aes.bin.h
 
 ifeq ($(MBEDTLS),1)
     # use MbedTLS
     CFLAGS += -DLIBCSUIT_PSA_CRYPTO_C=1
-    #LDFLAGS += -lmbedtls -lmbedx509
     LDFLAGS += -lmbedcrypto
 else
     # use OpenSSL
@@ -39,15 +43,18 @@ else
 endif
 
 .PHONY: all
-all: $(TARGET)
+all: $(BINARIES) $(TARGET)
 
 include Makefile.common
 
 $(TARGET): $(OBJS) | ./bin
-	$(CC) $(LDWRAP) -o $@ $^ $(LDFLAGS)
+	$(CC) $(LDWRAP) -o $@ $(OBJS) $(LDFLAGS)
 
 ./obj/%.o: %.c | ./obj/src ./obj/examples
 	$(CC) $(CFLAGS) $(INC) $(CMD_LINE) -o $@ -c $<
+
+./testfiles/%.h:
+	$(MAKE) -C testfiles $<
 
 define test-one
 	$(TARGET) ./testfiles/suit_manifest_exp$(1).cbor || exit 1
