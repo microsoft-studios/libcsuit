@@ -1110,11 +1110,11 @@ suit_err_t suit_decode_text_component_from_item(QCBORDecodeContext *context,
     return result;
 }
 
-suit_err_t suit_decode_text_from_item(const suit_decode_mode_t mode,
-                                      QCBORDecodeContext *context,
-                                      QCBORItem *item,
-                                      bool next,
-                                      suit_text_t *text)
+suit_err_t suit_decode_text_lmap_from_item(const suit_decode_mode_t mode,
+                                           QCBORDecodeContext *context,
+                                           QCBORItem *item,
+                                           bool next,
+                                           suit_text_lmap_t *text_lmap)
 {
     /* NOTE: in QCBOR_DECODE_MODE_MAP_AS_ARRAY */
     suit_err_t result = suit_qcbor_get(context, item, next, QCBOR_TYPE_MAP_AS_ARRAY);
@@ -1123,7 +1123,7 @@ suit_err_t suit_decode_text_from_item(const suit_decode_mode_t mode,
     }
 
     size_t map_count = item->val.uCount;
-    text->component_len = 0;
+    text_lmap->component_len = 0;
     for (size_t i = 0; i < map_count; i += 2) {
         result = suit_qcbor_get_next(context, item, QCBOR_TYPE_ANY);
         if (result != SUIT_SUCCESS) {
@@ -1133,18 +1133,18 @@ suit_err_t suit_decode_text_from_item(const suit_decode_mode_t mode,
         int64_t label = INT64_MIN;
         switch (item->uDataType) {
         case QCBOR_TYPE_ARRAY:
-            if (text->component_len >= SUIT_MAX_ARRAY_LENGTH) {
+            if (text_lmap->component_len >= SUIT_MAX_ARRAY_LENGTH) {
                 return SUIT_ERR_NO_MEMORY;
             }
-            result = suit_decode_component_identifiers_from_item(mode, context, item, false, &text->component[text->component_len].key);
+            result = suit_decode_component_identifiers_from_item(mode, context, item, false, &text_lmap->component[text_lmap->component_len].key);
             if (result != SUIT_SUCCESS) {
                 return result;
             }
-            result = suit_decode_text_component_from_item(context, item, true, &text->component[text->component_len].text_component);
+            result = suit_decode_text_component_from_item(context, item, true, &text_lmap->component[text_lmap->component_len].text_component);
             if (result != SUIT_SUCCESS) {
                 return result;
             }
-            text->component_len++;
+            text_lmap->component_len++;
             break;
         case QCBOR_TYPE_INT64:
             if (label > item->val.int64 && !mode.ALLOW_NOT_CANONICAL_CBOR) {
@@ -1159,20 +1159,20 @@ suit_err_t suit_decode_text_from_item(const suit_decode_mode_t mode,
             }
             switch (label) {
             case SUIT_TEXT_MANIFEST_DESCRIPTION:
-                text->manifest_description.ptr = (uint8_t *)item->val.string.ptr;
-                text->manifest_description.len = item->val.string.len;
+                text_lmap->manifest_description.ptr = (uint8_t *)item->val.string.ptr;
+                text_lmap->manifest_description.len = item->val.string.len;
                 break;
             case SUIT_TEXT_UPDATE_DESCRIPTION:
-                text->update_description.ptr = (uint8_t *)item->val.string.ptr;
-                text->update_description.len = item->val.string.len;
+                text_lmap->update_description.ptr = (uint8_t *)item->val.string.ptr;
+                text_lmap->update_description.len = item->val.string.len;
                 break;
             case SUIT_TEXT_MANIFEST_JSON_SOURCE:
-                text->manifest_json_source.ptr = (uint8_t *)item->val.string.ptr;
-                text->manifest_json_source.len = item->val.string.len;
+                text_lmap->manifest_json_source.ptr = (uint8_t *)item->val.string.ptr;
+                text_lmap->manifest_json_source.len = item->val.string.len;
                 break;
             case SUIT_TEXT_MANIFEST_YAML_SOURCE:
-                text->manifest_yaml_source.ptr = (uint8_t *)item->val.string.ptr;
-                text->manifest_yaml_source.len = item->val.string.len;
+                text_lmap->manifest_yaml_source.ptr = (uint8_t *)item->val.string.ptr;
+                text_lmap->manifest_yaml_source.len = item->val.string.len;
                 break;
             default:
                 return SUIT_ERR_NOT_IMPLEMENTED;
@@ -1188,11 +1188,43 @@ suit_err_t suit_decode_text_from_item(const suit_decode_mode_t mode,
     return result;
 }
 
+suit_err_t suit_decode_text_map_from_item(const suit_decode_mode_t mode,
+                                          QCBORDecodeContext *context,
+                                          QCBORItem *item,
+                                          bool next,
+                                          suit_text_map_t *text_map)
+{
+    /* NOTE: in QCBOR_DECODE_MODE_MAP_AS_ARRAY */
+    suit_err_t result = suit_qcbor_get(context, item, next, QCBOR_TYPE_MAP_AS_ARRAY);
+    if (result != SUIT_SUCCESS) {
+        return result;
+    }
+    if (item->val.uCount > SUIT_MAX_ARRAY_LENGTH || item->val.uCount % 2 != 0) {
+        return SUIT_ERR_NO_MEMORY;
+    }
+
+    text_map->text_lmaps_len = item->val.uCount / 2;
+    for (size_t i = 0; i < text_map->text_lmaps_len; i++) {
+        /* get tag38_ltag */
+        result = suit_qcbor_get_next(context, item, QCBOR_TYPE_TEXT_STRING);
+        if (result != SUIT_SUCCESS) {
+            return result;
+        }
+        text_map->text_lmaps[i].tag38_ltag = (suit_buf_t){.ptr = (uint8_t *)item->val.string.ptr, .len = item->val.string.len};
+
+        result = suit_decode_text_lmap_from_item(mode, context, item, next, &text_map->text_lmaps[i]);
+        if (result != SUIT_SUCCESS) {
+            return result;
+        }
+    }
+    return result;
+}
+
 suit_err_t suit_decode_text_from_bstr(const suit_decode_mode_t mode,
                                       QCBORDecodeContext *context,
                                       QCBORItem *item,
                                       bool next,
-                                      suit_text_t *text)
+                                      suit_text_map_t *text_map)
 {
     suit_err_t result = suit_qcbor_get(context, item, next, QCBOR_TYPE_BYTE_STRING);
     QCBORDecodeContext text_context;
@@ -1202,7 +1234,7 @@ suit_err_t suit_decode_text_from_bstr(const suit_decode_mode_t mode,
     QCBORDecode_Init(&text_context,
                      (UsefulBufC){item->val.string.ptr, item->val.string.len},
                      QCBOR_DECODE_MODE_MAP_AS_ARRAY);
-    result = suit_decode_text_from_item(mode, &text_context, item, true, text);
+    result = suit_decode_text_map_from_item(mode, &text_context, item, true, text_map);
     QCBORError error = QCBORDecode_Finish(&text_context);
     if (error != QCBOR_SUCCESS && result == SUIT_SUCCESS) {
         result = suit_error_from_qcbor_error(error);

@@ -45,7 +45,7 @@ $(TARGET): $(OBJS) | ./bin
 ./obj/%.o: %.c | ./obj/src ./obj/examples
 	$(CC) $(CFLAGS) $(INC) -o $@ -c $<
 
-TEST_NUM := 0 1 2A 2B 3 4 5 U I D R S0 S1 S2 S3 S4 U0 U1
+TEST_NUM := 0 1 2A 2B 3 4 5 U I D AF AW EW ED S0 S2 S3 S4 U0 U1
 EXPS := $(foreach num,$(TEST_NUM),./testfiles/suit_manifest_exp$(num).cbor)
 define test-one
 	$(TARGET) $1 2 || exit 1

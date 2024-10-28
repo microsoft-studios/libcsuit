@@ -7,6 +7,8 @@
 
 #ifndef TRUST_ANCHOR_PRIME256V1_COSE_KEY_PUBLIC_H
 #define TRUST_ANCHOR_PRIME256V1_COSE_KEY_PUBLIC_H
+#include "qcbor/UsefulBuf.h"
+
 const unsigned char trust_anchor_prime256v1_cose_key_public_buf[] = {
     0xA4,                                 //# map(4)
        0x01,                              //# unsigned(1) / 1 = kty /

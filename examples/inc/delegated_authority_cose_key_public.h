@@ -5,11 +5,11 @@
  *
  */
 
-#ifndef TAM_ES256_COSE_KEY_PUBLIC_H
-#define TAM_ES256_COSE_KEY_PUBLIC_H
+#ifndef DELEGATED_AUTHORITY_ES256_COSE_KEY_PUBLIC_H
+#define DELEGATED_AUTHORITY_ES256_COSE_KEY_PUBLIC_H
 #include "qcbor/UsefulBuf.h"
 
-const unsigned char tam_es256_cose_key_public_buf[] = {
+const unsigned char delegated_authority_es256_cose_key_public_buf[] = {
     0xA4,                                 //# map(4)
        0x01,                              //# unsigned(1) / 1 = kty /
        0x02,                              //# unsigned(2) / 2 = EC2 /
@@ -28,8 +28,8 @@ const unsigned char tam_es256_cose_key_public_buf[] = {
           0x16, 0x4D, 0x49, 0xAD, 0x35, 0x51, 0xD7, 0x1D,
           0x31, 0x4B, 0x27, 0x49, 0xEE, 0x42, 0xD2, 0x9A,
 };
-const UsefulBufC tam_es256_cose_key_public = {
-    .ptr = tam_es256_cose_key_public_buf,
-    .len = sizeof(tam_es256_cose_key_public_buf)
+const UsefulBufC delegated_authority_es256_cose_key_public = {
+    .ptr = delegated_authority_es256_cose_key_public_buf,
+    .len = sizeof(delegated_authority_es256_cose_key_public_buf)
 };
-#endif /* TAM_ES256_COSE_KEY_PUBLIC_H */
+#endif /* DELEGATED_AUTHORITY_ES256_COSE_KEY_PUBLIC_H */

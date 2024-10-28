@@ -7,6 +7,8 @@
 
 #ifndef DEVICE_ES256_COSE_KEY_PRIVATE_H
 #define DEVICE_ES256_COSE_KEY_PRIVATE_H
+#include "qcbor/UsefulBuf.h"
+
 const unsigned char device_es256_cose_key_private_buf[] = {
     0xA5,                                 //# map(5)
        0x01,                              //# unsigned(1) / 1 = kty /

@@ -7,6 +7,8 @@
 
 #ifndef TRUST_ANCHOR_HMAC256_COSE_KEY_SECRET_H
 #define TRUST_ANCHOR_HMAC256_COSE_KEY_SECRET_H
+#include "qcbor/UsefulBuf.h"
+
 const unsigned char trust_anchor_hmac256_cose_key_secret_buf[] = {
     0xA2,                                   //# map(2)
        0x01,                                //# unsigned(1) / 1 = key /

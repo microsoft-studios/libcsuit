@@ -12,6 +12,7 @@
 #include "csuit/suit_cose.h"
 #include "suit_examples_common.h"
 #include "trust_anchor_prime256v1_cose_key_private.h"
+#include "delegated_authority_cose_key_private.h"
 #include "trust_anchor_hmac256_cose_key_secret.h"
 
 #define MAX_FILE_BUFFER_SIZE            (8 * 1024 * 1024)
@@ -45,14 +46,23 @@ int main(int argc,
     mechanisms[0].cose_tag = CBOR_TAG_COSE_SIGN1;
     mechanisms[0].use = false;
 
-    mechanisms[1].key.cose_algorithm_id = T_COSE_ALGORITHM_HMAC256;
-    result = suit_set_suit_key_from_cose_key(trust_anchor_hmac256_cose_key_secret, &mechanisms[1].key);
+    mechanisms[1].key.cose_algorithm_id = T_COSE_ALGORITHM_ES256;
+    result = suit_set_suit_key_from_cose_key(delegated_authority_es256_cose_key_private, &mechanisms[1].key);
+    if (result != SUIT_SUCCESS) {
+        printf("main : Failed to create public key. %s(%d)\n", suit_err_to_str(result), result);
+        return EXIT_FAILURE;
+    }
+    mechanisms[1].cose_tag = CBOR_TAG_COSE_SIGN1;
+    mechanisms[1].use = false;
+
+    mechanisms[2].key.cose_algorithm_id = T_COSE_ALGORITHM_HMAC256;
+    result = suit_set_suit_key_from_cose_key(trust_anchor_hmac256_cose_key_secret, &mechanisms[2].key);
     if (result != SUIT_SUCCESS) {
         printf("main : Failed to create secret key. %s(%d)\n", suit_err_to_str(result), result);
         return EXIT_FAILURE;
     }
-    mechanisms[1].cose_tag = CBOR_TAG_COSE_MAC0;
-    mechanisms[1].use = false;
+    mechanisms[2].cose_tag = CBOR_TAG_COSE_MAC0;
+    mechanisms[2].use = false;
 
     // Read manifest file.
     printf("main : Read Manifest file.\n");

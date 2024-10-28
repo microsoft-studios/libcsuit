@@ -61,7 +61,7 @@ define test-one
 
 endef
 
-TEST_NUM := 0 1 2A 2B 3 4 5 U I D R S0 S1 S2 S3 S4 U0 U1
+TEST_NUM := 0 1 2A 2B 3 4 5 U I D AF AW EW ED S0 S2 S3 S4 U0 U1
 .PHONY: test
 test: all
 	$(foreach num,$(TEST_NUM),$(call test-one,$(num)))

@@ -668,11 +668,89 @@ suit_err_t suit_encode_common(const suit_common_t *suit_common,
 }
 
 #if !defined(LIBCSUIT_DISABLE_MANIFEST_TEXT)
-suit_err_t suit_encode_text(const suit_text_t *text,
+suit_err_t suit_encode_text_lmap(const suit_text_lmap_t *text,
+                                 UsefulBuf tag38_buf,
+                                 QCBOREncodeContext *context)
+{
+    suit_err_t result = SUIT_SUCCESS;
+    if (text->tag38_ltag.len + 1 > tag38_buf.len) {
+        return SUIT_ERR_NO_MEMORY;
+    }
+    memcpy(tag38_buf.ptr, text->tag38_ltag.ptr, text->tag38_ltag.len);
+    ((char *)tag38_buf.ptr)[text->tag38_ltag.len] = '\0';
+    QCBOREncode_OpenMapInMap(context, tag38_buf.ptr);
+
+    // SUIT_Text_Keys : tstr
+    if (text->manifest_description.len > 0) {
+        QCBOREncode_AddTextToMapN(context, SUIT_TEXT_MANIFEST_DESCRIPTION, (UsefulBufC){.ptr = text->manifest_description.ptr, .len = text->manifest_description.len});
+    }
+    if (text->update_description.len > 0) {
+        QCBOREncode_AddTextToMapN(context, SUIT_TEXT_MANIFEST_DESCRIPTION, (UsefulBufC){.ptr = text->update_description.ptr, .len = text->manifest_description.len});
+    }
+    if (text->manifest_json_source.len > 0) {
+        QCBOREncode_AddTextToMapN(context, SUIT_TEXT_MANIFEST_DESCRIPTION, (UsefulBufC){.ptr = text->manifest_json_source.ptr, .len = text->manifest_description.len});
+    }
+    if (text->manifest_yaml_source.len > 0) {
+        QCBOREncode_AddTextToMapN(context, SUIT_TEXT_MANIFEST_DESCRIPTION, (UsefulBufC){.ptr = text->manifest_yaml_source.ptr, .len = text->manifest_description.len});
+    }
+    // TODO suit-text-key-extensions
+
+    // SUIT_Component_Identifier : {}
+    for (size_t i = 0; i < text->component_len; i++) {
+        const suit_component_identifier_t *component = &text->component[i].key;
+        QCBOREncode_OpenArray(context);
+        for (size_t j = 0; j < component->len; j++) {
+            QCBOREncode_AddBytes(context, (UsefulBufC){.ptr = component->identifier[j].ptr, .len = component->identifier[j].len});
+        }
+        QCBOREncode_CloseArray(context);
+        QCBOREncode_OpenMap(context);
+        const suit_text_component_t *text_component = &text->component[i].text_component;
+        if (text_component->vendor_name.len > 0) {
+            QCBOREncode_AddTextToMapN(context, SUIT_TEXT_VENDOR_NAME, (UsefulBufC){.ptr = text_component->vendor_name.ptr, .len = text_component->vendor_name.len});
+        }
+        if (text_component->model_name.len > 0) {
+            QCBOREncode_AddTextToMapN(context, SUIT_TEXT_MODEL_NAME, (UsefulBufC){.ptr = text_component->model_name.ptr, .len = text_component->model_name.len});
+        }
+        if (text_component->vendor_domain.len > 0) {
+            QCBOREncode_AddTextToMapN(context, SUIT_TEXT_VENDOR_DOMAIN, (UsefulBufC){.ptr = text_component->vendor_domain.ptr, .len = text_component->vendor_domain.len});
+        }
+        if (text_component->model_info.len > 0) {
+            QCBOREncode_AddTextToMapN(context, SUIT_TEXT_MODEL_INFO, (UsefulBufC){.ptr = text_component->model_info.ptr, .len = text_component->model_info.len});
+        }
+        if (text_component->component_description.len > 0) {
+            QCBOREncode_AddTextToMapN(context, SUIT_TEXT_COMPONENT_DESCRIPTION, (UsefulBufC){.ptr = text_component->component_description.ptr, .len = text_component->component_description.len});
+        }
+        if (text_component->component_version.len > 0) {
+            QCBOREncode_AddTextToMapN(context, SUIT_TEXT_COMPONENT_VERSION, (UsefulBufC){.ptr = text_component->component_version.ptr, .len = text_component->component_version.len});
+        }
+        /* in draft-ietf-suit-update-management */
+        if (text_component->version_required.len > 0) {
+            QCBOREncode_AddTextToMapN(context, SUIT_TEXT_VERSION_REQUIRED, (UsefulBufC){.ptr = text_component->version_required.ptr, .len = text_component->version_required.len});
+        }
+        // TODO suit-text-component-key-extensions
+        QCBOREncode_CloseMap(context);
+    }
+    QCBOREncode_CloseMap(context);
+
+    return result;
+}
+
+suit_err_t suit_encode_text(const suit_text_map_t *text,
                             suit_encode_t *suit_encode,
                             UsefulBuf *buf)
 {
-    suit_err_t result;
+    suit_err_t result = SUIT_SUCCESS;
+
+    UsefulBuf tag38_buf;
+    result = suit_use_suit_encode_buf(suit_encode, SUIT_MAX_NAME_LENGTH, &tag38_buf);
+    if (result != SUIT_SUCCESS) {
+        return result;
+    }
+    result = suit_fix_suit_encode_buf(suit_encode, SUIT_MAX_NAME_LENGTH);
+    if (result != SUIT_SUCCESS) {
+        return result;
+    }
+
     UsefulBuf tmp_buf;
     result = suit_use_suit_encode_buf(suit_encode, 0, &tmp_buf);
     if (result != SUIT_SUCCESS) {
@@ -680,60 +758,14 @@ suit_err_t suit_encode_text(const suit_text_t *text,
     }
     QCBOREncodeContext context;
     QCBOREncode_Init(&context, tmp_buf);
-
     QCBOREncode_OpenMap(&context);
-    // SUIT_Text_Keys : tstr
-    if (text->manifest_description.len > 0) {
-        QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_MANIFEST_DESCRIPTION, (UsefulBufC){.ptr = text->manifest_description.ptr, .len = text->manifest_description.len});
-    }
-    if (text->update_description.len > 0) {
-        QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_MANIFEST_DESCRIPTION, (UsefulBufC){.ptr = text->update_description.ptr, .len = text->manifest_description.len});
-    }
-    if (text->manifest_json_source.len > 0) {
-        QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_MANIFEST_DESCRIPTION, (UsefulBufC){.ptr = text->manifest_json_source.ptr, .len = text->manifest_description.len});
-    }
-    if (text->manifest_yaml_source.len > 0) {
-        QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_MANIFEST_DESCRIPTION, (UsefulBufC){.ptr = text->manifest_yaml_source.ptr, .len = text->manifest_description.len});
-    }
-    // TODO suit-text-key-extensions
-
-    // SUIT_Component_Identifier : {}
-    for (size_t i = 0; i < text->component_len; i++) {
-        const suit_component_identifier_t *component = &text->component[i].key;
-        QCBOREncode_OpenArray(&context);
-        for (size_t j = 0; j < component->len; j++) {
-            QCBOREncode_AddBytes(&context, (UsefulBufC){.ptr = component->identifier[j].ptr, .len = component->identifier[j].len});
+    for (size_t i = 0; i < text->text_lmaps_len; i++) {
+        result = suit_encode_text_lmap(&text->text_lmaps[i], tag38_buf, &context);
+        if (result != SUIT_SUCCESS) {
+            return result;
         }
-        QCBOREncode_CloseArray(&context);
-        QCBOREncode_OpenMap(&context);
-        const suit_text_component_t *text_component = &text->component[i].text_component;
-        if (text_component->vendor_name.len > 0) {
-            QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_VENDOR_NAME, (UsefulBufC){.ptr = text_component->vendor_name.ptr, .len = text_component->vendor_name.len});
-        }
-        if (text_component->model_name.len > 0) {
-            QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_MODEL_NAME, (UsefulBufC){.ptr = text_component->model_name.ptr, .len = text_component->model_name.len});
-        }
-        if (text_component->vendor_domain.len > 0) {
-            QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_VENDOR_DOMAIN, (UsefulBufC){.ptr = text_component->vendor_domain.ptr, .len = text_component->vendor_domain.len});
-        }
-        if (text_component->model_info.len > 0) {
-            QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_MODEL_INFO, (UsefulBufC){.ptr = text_component->model_info.ptr, .len = text_component->model_info.len});
-        }
-        if (text_component->component_description.len > 0) {
-            QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_COMPONENT_DESCRIPTION, (UsefulBufC){.ptr = text_component->component_description.ptr, .len = text_component->component_description.len});
-        }
-        if (text_component->component_version.len > 0) {
-            QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_COMPONENT_VERSION, (UsefulBufC){.ptr = text_component->component_version.ptr, .len = text_component->component_version.len});
-        }
-        /* in draft-ietf-suit-update-management */
-        if (text_component->version_required.len > 0) {
-            QCBOREncode_AddTextToMapN(&context, SUIT_TEXT_VERSION_REQUIRED, (UsefulBufC){.ptr = text_component->version_required.ptr, .len = text_component->version_required.len});
-        }
-        // TODO suit-text-component-key-extensions
-        QCBOREncode_CloseMap(&context);
     }
     QCBOREncode_CloseMap(&context);
-
     UsefulBufC t_buf;
     QCBORError error = QCBOREncode_Finish(&context, &t_buf);
     if (error != QCBOR_SUCCESS) {
@@ -743,7 +775,7 @@ suit_err_t suit_encode_text(const suit_text_t *text,
     return suit_fix_suit_encode_buf(suit_encode, t_buf.len);
 }
 
-suit_err_t suit_encode_text_bstr(const suit_text_t *text,
+suit_err_t suit_encode_text_bstr(const suit_text_map_t *text,
                                  suit_encode_t *suit_encode,
                                  UsefulBuf *buf)
 {
