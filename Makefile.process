@@ -48,9 +48,6 @@ $(TARGET): $(OBJS) | ./bin
 ./obj/%.o: %.c | ./obj/src ./obj/examples
 	$(CC) $(CFLAGS) $(INC) $(CMD_LINE) -o $@ -c $<
 
-./testfiles/%.h:
-	$(MAKE) -C testfiles $<
-
 define test-one
 	$(TARGET) ./testfiles/suit_manifest_exp$(1).cbor \
 		-u "http://example.com/dependent.suit" -f "./testfiles/suit_manifest_expS0.cbor" \
