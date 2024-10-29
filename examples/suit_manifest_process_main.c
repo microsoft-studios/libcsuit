@@ -60,15 +60,21 @@ suit_err_t __wrap_suit_fetch_callback(suit_fetch_args_t fetch_args, suit_fetch_r
             fseek(f, 0, SEEK_END);
             long size = ftell(f);
             if (size < 0 || fetch_args.buf_len < size) {
+                fclose(f);
                 return SUIT_ERR_NO_MEMORY;
             }
             fseek(f, 0, SEEK_SET);
             if (fetch_args.ptr != NULL) {
-                fread(fetch_args.ptr, 1, size, f);
+                size_t num_read = fread(fetch_args.ptr, 1, size, f);
+                if (num_read != size) {
+                    fclose(f);
+                    return SUIT_ERR_NO_MEMORY;
+                }
                 fetch_ret->buf_len = size;
             }
+            fclose(f);
             write_to_file(filename, fetch_args.ptr, size);
-            printf("fetched %s (%ld bytes)\n\n", pairs[i].url, size);
+            printf("fetched from %s as %s (%ld bytes)\n\n", pairs[i].filename, pairs[i].url, size);
             break;
         }
     }
