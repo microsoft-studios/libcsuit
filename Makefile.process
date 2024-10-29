@@ -12,7 +12,7 @@ LDWRAP = \
 	-Xlinker --wrap=suit_invoke_callback \
 	-Xlinker --wrap=suit_condition_callback
 
-INC = $(CMD_INC) -I ./inc -I ./examples/inc -I ./testfiles
+INC = $(CMD_INC) -I ./inc -I ./examples/inc
 TARGET = ./bin/suit_manifest_process
 SRCS = \
 	examples/suit_examples_common.c \
@@ -27,11 +27,6 @@ SRCS = \
 	src/suit_manifest_print.c \
 	examples/suit_manifest_process_main.c
 OBJS = $(addprefix ./obj/,$(patsubst %.c,%.o,$(SRCS)))
-BINARIES = \
-	testfiles/suit_manifest_expU.cbor.h \
-	testfiles/config.json.h \
-	testfiles/suit_manifest_expS0.cbor.h \
-	testfiles/encrypted_image_aes.bin.h
 
 ifeq ($(MBEDTLS),1)
     # use MbedTLS
@@ -43,7 +38,7 @@ else
 endif
 
 .PHONY: all
-all: $(BINARIES) $(TARGET)
+all: $(TARGET)
 
 include Makefile.common
 
@@ -57,7 +52,12 @@ $(TARGET): $(OBJS) | ./bin
 	$(MAKE) -C testfiles $<
 
 define test-one
-	$(TARGET) ./testfiles/suit_manifest_exp$(1).cbor || exit 1
+	$(TARGET) ./testfiles/suit_manifest_exp$(1).cbor \
+		-u "http://example.com/dependent.suit" -f "./testfiles/suit_manifest_expS0.cbor" \
+		-u "https://example.com/encrypted-firmware" -f "./testfiles/encrypted_image_aes.bin" \
+		-u "https://example.org/8d82573a-926d-4754-9353-32dc29997f74.suit" -f "./testfiles/suit_manifest_expU.cbor" \
+		-u "https://example.org/8d82573a-926d-4754-9353-32dc29997f74.ta" -f "./testfiles/8d82573a-926d-4754-9353-32dc29997f74.ta" \
+		-u "https://example.org/config.json" -f "./testfiles/config.json" || exit 1
 
 endef
 

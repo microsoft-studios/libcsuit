@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <sys/types.h> // pid_t
 #include <sys/wait.h> // waitpid
-#include <unistd.h> // fork
+#include <unistd.h> // fork, getopt, optarg
 #include <fcntl.h> // AT_FDCWD
 #include "csuit/suit_manifest_process.h"
 #include "csuit/suit_manifest_print.h"
@@ -27,32 +27,11 @@
 #include "trust_anchor_a128_cose_key_secret.h"
 #include "device_es256_cose_key_private.h"
 
-#include "suit_manifest_expU.cbor.h"
-#include "config.json.h"
-#include "suit_manifest_expS0.cbor.h"
-#include "encrypted_image_aes.bin.h"
-
-const uint8_t tc_uri[] = "https://example.org/8d82573a-926d-4754-9353-32dc29997f74.ta";
-const uint8_t tc_data[] = "Hello, Secure World!";
-const uint8_t depend_uri[] = "https://example.org/8d82573a-926d-4754-9353-32dc29997f74.suit";
-const uint8_t config_uri[] = "https://example.org/config.json";
-const uint8_t dependency_uri[] = "http://example.com/dependent.suit";
-const uint8_t encrypted_firmware_uri[] = "https://example.com/encrypted-firmware";
-
-struct name_data {
-    const uint8_t *name;
-    size_t name_len;
-    const uint8_t *data;
-    size_t data_len;
-};
-#define SUIT_NAME_DATA_LEN 5
-const struct name_data name_data[] = {
-    {.name = tc_uri, .name_len = sizeof(tc_uri) - 1, .data = tc_data, .data_len = sizeof(tc_data) - 1},
-    {.name = depend_uri, .name_len = sizeof(depend_uri) - 1, .data = suit_manifest_expU_cbor, .data_len = suit_manifest_expU_cbor_len},
-    {.name = config_uri, .name_len = sizeof(config_uri) - 1, .data = config_json, .data_len = config_json_len},
-    {.name = dependency_uri, .name_len = sizeof(dependency_uri) - 1, .data = suit_manifest_expS0_cbor, .data_len = suit_manifest_expS0_cbor_len},
-    {.name = encrypted_firmware_uri, .name_len = sizeof(encrypted_firmware_uri) - 1, .data = encrypted_image_aes_bin, .data_len = encrypted_image_aes_bin_len},
-};
+typedef struct {
+    char *url;
+    char *filename;
+} UrlFilenamePair;
+UrlFilenamePair pairs[SUIT_MAX_ARRAY_LENGTH] = {0};
 
 suit_err_t __real_suit_fetch_callback(suit_fetch_args_t fetch_args, suit_fetch_ret_t *fetch_ret);
 suit_err_t __wrap_suit_fetch_callback(suit_fetch_args_t fetch_args, suit_fetch_ret_t *fetch_ret)
@@ -69,22 +48,31 @@ suit_err_t __wrap_suit_fetch_callback(suit_fetch_args_t fetch_args, suit_fetch_r
     }
 
     size_t i = 0;
-    for (i = 0; i < SUIT_NAME_DATA_LEN; i++) {
-        if (name_data[i].name_len == fetch_args.uri_len - 1 &&
-            memcmp(name_data[i].name, fetch_args.uri, name_data[i].name_len) == 0) {
-            if (fetch_args.buf_len < name_data[i].data_len) {
+    for (i = 0; i < SUIT_MAX_ARRAY_LENGTH; i++) {
+        if (pairs[i].url == NULL) {
+            continue;
+        }
+        if (memcmp(pairs[i].url, fetch_args.uri, fetch_args.uri_len) == 0) {
+            FILE *f = fopen(pairs[i].filename, "r");
+            if (f == NULL) {
+                return SUIT_ERR_NOT_FOUND;
+            }
+            fseek(f, 0, SEEK_END);
+            long size = ftell(f);
+            if (size < 0 || fetch_args.buf_len < size) {
                 return SUIT_ERR_NO_MEMORY;
             }
+            fseek(f, 0, SEEK_SET);
             if (fetch_args.ptr != NULL) {
-                memcpy(fetch_args.ptr, name_data[i].data, name_data[i].data_len);
-                fetch_ret->buf_len = name_data[i].data_len;
+                fread(fetch_args.ptr, 1, size, f);
+                fetch_ret->buf_len = size;
             }
-            write_to_file(filename, fetch_args.ptr, name_data[i].data_len);
-            printf("fetched %s\n\n", name_data[i].name);
+            write_to_file(filename, fetch_args.ptr, size);
+            printf("fetched %s (%ld bytes)\n\n", pairs[i].url, size);
             break;
         }
     }
-    if (i == SUIT_NAME_DATA_LEN) {
+    if (i == SUIT_MAX_ARRAY_LENGTH) {
         /* not found */
         /* ignore this for testing example 0-5 only */
         //return SUIT_ERR_NOT_FOUND;
@@ -376,13 +364,45 @@ suit_err_t __wrap_suit_store_callback(suit_store_args_t store_args)
     return result;
 }
 
-int main(int argc, char *argv[])
+void display_help(const char *argv0, bool on_error)
 {
-    // check arguments.
-    if (argc < 2) {
-        printf("%s <manifest file path>", argv[0]);
-        return EXIT_FAILURE;
+    if (on_error) {
+        fprintf(stderr, "Usage: %s <manifest_filename> [-u <URL> -f <filename> ...]\n", argv0);
+        exit(EXIT_FAILURE);
     }
+    printf("Usage: %s <manifest_filename> [-u <URL> -f <filename> ...]\n", argv0);
+    exit(EXIT_SUCCESS);
+}
+
+int main(int argc, char *argv[]) {
+    int opt;
+    int pair_count = 0;
+
+    while ((opt = getopt(argc, argv, "u:f:h")) != -1) {
+        switch (opt) {
+        case 'u':
+            if (pair_count < SUIT_MAX_ARRAY_LENGTH) {
+                pairs[pair_count].url = optarg;
+            }
+            break;
+        case 'f':
+            if (pair_count < SUIT_MAX_ARRAY_LENGTH) {
+                if (pairs[pair_count].url == NULL) {
+                    display_help(argv[0], true);
+                }
+                pairs[pair_count].filename = optarg;
+                pair_count++;
+            }
+            break;
+        case 'h':
+            display_help(argv[0], false);
+            break;
+        default:
+            display_help(argv[0], true);
+            break;
+        }
+    }
+
     suit_err_t result = 0;
 
     int num_key = 0;
@@ -472,9 +492,9 @@ int main(int argc, char *argv[])
     // Read manifest file.
     printf("\nmain : Read Manifest file.\n");
     suit_inputs->manifest.ptr = suit_inputs->buf;
-    suit_inputs->manifest.len = read_from_file(argv[1], suit_inputs->buf, SUIT_MAX_DATA_SIZE);
+    suit_inputs->manifest.len = read_from_file(argv[optind], suit_inputs->buf, SUIT_MAX_DATA_SIZE);
     if (suit_inputs->manifest.len <= 0) {
-        printf("main : Failed to read Manifest file.\n");
+        printf("main : Failed to read Manifest file. (%s)\n", argv[1]);
         return EXIT_FAILURE;
     }
     suit_inputs->left_len -= suit_inputs->manifest.len;
