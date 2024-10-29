@@ -30,6 +30,7 @@
 typedef struct {
     char *url;
     char *filename;
+    char *binary_in_hex;
 } UrlFilenamePair;
 UrlFilenamePair pairs[SUIT_MAX_ARRAY_LENGTH] = {0};
 
@@ -56,12 +57,91 @@ suit_err_t __wrap_suit_fetch_callback(suit_fetch_args_t fetch_args, suit_fetch_r
             if (fetch_args.ptr == NULL) {
                 return SUIT_ERR_NO_MEMORY;
             }
-            FILE *f = fopen(pairs[i].filename, "r");
-            fetch_ret->buf_len = fread(fetch_args.ptr, 1, fetch_args.buf_len, f);
-            fclose(f);
+            if (pairs[i].filename != NULL) {
+                FILE *f = fopen(pairs[i].filename, "r");
+                fetch_ret->buf_len = fread(fetch_args.ptr, 1, fetch_args.buf_len, f);
+                fclose(f);
+                printf("fetched from %s as %s (%ld bytes) to %s\n\n", pairs[i].filename, pairs[i].url, fetch_ret->buf_len, filename);
+            }
+            else if (pairs[i].binary_in_hex != NULL) {
+                size_t num = strlen(pairs[i].binary_in_hex);
+                if (num % 2 != 0) {
+                    return SUIT_ERR_INVALID_VALUE;
+                }
+                for (size_t j = 0; j < num; j+=2) {
+                    uint8_t val = 0;
+                    switch (pairs[i].binary_in_hex[j]) {
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                        val = (pairs[i].binary_in_hex[j] - '0') * 16;
+                        break;
+                    case 'a':
+                    case 'b':
+                    case 'c':
+                    case 'd':
+                    case 'e':
+                    case 'f':
+                        val = (pairs[i].binary_in_hex[j] - 'a' + 10) * 16;
+                        break;
+                    case 'A':
+                    case 'B':
+                    case 'C':
+                    case 'D':
+                    case 'E':
+                    case 'F':
+                        val = (pairs[i].binary_in_hex[j] - 'A' + 10) * 16;
+                        break;
+                    default:
+                        return SUIT_ERR_INVALID_VALUE;
+                    }
+
+                    switch (pairs[i].binary_in_hex[j+1]) {
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                        val += (pairs[i].binary_in_hex[j+1] - '0');
+                        break;
+                    case 'a':
+                    case 'b':
+                    case 'c':
+                    case 'd':
+                    case 'e':
+                    case 'f':
+                        val += (pairs[i].binary_in_hex[j+1] - 'a' + 10);
+                        break;
+                    case 'A':
+                    case 'B':
+                    case 'C':
+                    case 'D':
+                    case 'E':
+                    case 'F':
+                        val += (pairs[i].binary_in_hex[j+1] - 'A' + 10);
+                        break;
+                    default:
+                        return SUIT_ERR_INVALID_VALUE;
+                    }
+                    ((uint8_t *)(fetch_args.ptr))[j / 2] = val;
+                }
+                fetch_ret->buf_len = num / 2;
+                printf("fetched from %s as %s (%ld bytes) to %s\n\n", pairs[i].binary_in_hex, pairs[i].url, fetch_ret->buf_len, filename);
+            }
 
             write_to_file(filename, fetch_args.ptr, fetch_ret->buf_len);
-            printf("fetched from %s as %s (%ld bytes) to %s\n\n", pairs[i].filename, pairs[i].url, fetch_ret->buf_len, filename);
             break;
         }
     }
@@ -359,33 +439,40 @@ suit_err_t __wrap_suit_store_callback(suit_store_args_t store_args)
 
 void display_help(const char *argv0, bool on_error)
 {
-    if (on_error) {
-        fprintf(stderr, "Usage: %s <manifest_filename> [-u <URL> -f <filename> ...]\n", argv0);
-        exit(EXIT_FAILURE);
-    }
-    printf("Usage: %s <manifest_filename> [-u <URL> -f <filename> ...]\n", argv0);
-    exit(EXIT_SUCCESS);
+    fprintf((on_error) ? stderr : stdout, "Usage: %s <manifest_filename> [-u <URL> [-f <filename> | -b <binary_in_hex>] ] ...\n", argv0);
+    exit((on_error) ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[]) {
     int opt;
     int pair_count = 0;
 
-    while ((opt = getopt(argc, argv, "u:f:h")) != -1) {
+    while ((opt = getopt(argc, argv, "u:f:b:h")) != -1) {
+        if (pair_count >= SUIT_MAX_ARRAY_LENGTH) {
+            printf("The maximum number of URL={filename,binary_in_hex} is %d", SUIT_MAX_ARRAY_LENGTH);
+            display_help(argv[0], true);
+        }
+
         switch (opt) {
         case 'u':
-            if (pair_count < SUIT_MAX_ARRAY_LENGTH) {
-                pairs[pair_count].url = optarg;
+            if (pairs[pair_count].url != NULL) {
+               display_help(argv[0], true);
             }
+            pairs[pair_count].url = optarg;
             break;
         case 'f':
-            if (pair_count < SUIT_MAX_ARRAY_LENGTH) {
-                if (pairs[pair_count].url == NULL) {
-                    display_help(argv[0], true);
-                }
-                pairs[pair_count].filename = optarg;
-                pair_count++;
+            if (pairs[pair_count].url == NULL) {
+                display_help(argv[0], true);
             }
+            pairs[pair_count].filename = optarg;
+            pair_count++;
+            break;
+        case 'b':
+            if (pairs[pair_count].url == NULL) {
+                display_help(argv[0], true);
+            }
+            pairs[pair_count].binary_in_hex = optarg;
+            pair_count++;
             break;
         case 'h':
             display_help(argv[0], false);

@@ -51,7 +51,7 @@ $(TARGET): $(OBJS) | ./bin
 define test-one
 	$(TARGET) ./testfiles/suit_manifest_exp$(1).cbor \
 		-u "http://example.com/dependent.suit" -f "./testfiles/suit_manifest_expS0.cbor" \
-		-u "https://example.com/encrypted-firmware" -f "./testfiles/encrypted_image_aes.bin" \
+		-u "https://example.com/encrypted-firmware" -b "758c4b7bbae2c4c1d462423e0f0dc3164ffa7b85bb94d4bd6d7ed26ab32feb063385d4d3465927ec82cb5e198a59" \
 		-u "https://example.org/8d82573a-926d-4754-9353-32dc29997f74.suit" -f "./testfiles/suit_manifest_expU.cbor" \
 		-u "https://example.org/8d82573a-926d-4754-9353-32dc29997f74.ta" -f "./testfiles/8d82573a-926d-4754-9353-32dc29997f74.ta" \
 		-u "https://example.org/config.json" -f "./testfiles/config.json" || exit 1
