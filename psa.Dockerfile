@@ -31,5 +31,5 @@ RUN make -f Makefile.process MBEDTLS=1
 CMD make test MBEDTLS=1 && \
     make -f Makefile.encode MBEDTLS=1 test && \
     make -f Makefile.parser MBEDTLS=1 test && \
-    make -f Makefile.encrypt MBEDTLS=1 run && \
-    make -f Makefile.process MBEDTLS=1 test
+    make -f Makefile.process MBEDTLS=1 test && \
+    make -f Makefile.encrypt MBEDTLS=1 run

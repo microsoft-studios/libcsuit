@@ -27,5 +27,5 @@ RUN make -f Makefile.process
 CMD make test && \
     make -f Makefile.encode test && \
     make -f Makefile.parser test && \
-    make -f Makefile.encrypt run && \
-    make -f Makefile.process test
+    make -f Makefile.process test && \
+    make -f Makefile.encrypt run

@@ -53,28 +53,15 @@ suit_err_t __wrap_suit_fetch_callback(suit_fetch_args_t fetch_args, suit_fetch_r
             continue;
         }
         if (memcmp(pairs[i].url, fetch_args.uri, fetch_args.uri_len) == 0) {
-            FILE *f = fopen(pairs[i].filename, "r");
-            if (f == NULL) {
-                return SUIT_ERR_NOT_FOUND;
-            }
-            fseek(f, 0, SEEK_END);
-            long size = ftell(f);
-            if (size < 0 || fetch_args.buf_len < size) {
-                fclose(f);
+            if (fetch_args.ptr == NULL) {
                 return SUIT_ERR_NO_MEMORY;
             }
-            fseek(f, 0, SEEK_SET);
-            if (fetch_args.ptr != NULL) {
-                size_t num_read = fread(fetch_args.ptr, 1, size, f);
-                if (num_read != size) {
-                    fclose(f);
-                    return SUIT_ERR_NO_MEMORY;
-                }
-                fetch_ret->buf_len = size;
-            }
+            FILE *f = fopen(pairs[i].filename, "r");
+            fetch_ret->buf_len = fread(fetch_args.ptr, 1, fetch_args.buf_len, f);
             fclose(f);
-            write_to_file(filename, fetch_args.ptr, size);
-            printf("fetched from %s as %s (%ld bytes)\n\n", pairs[i].filename, pairs[i].url, size);
+
+            write_to_file(filename, fetch_args.ptr, fetch_ret->buf_len);
+            printf("fetched from %s as %s (%ld bytes) to %s\n\n", pairs[i].filename, pairs[i].url, fetch_ret->buf_len, filename);
             break;
         }
     }
